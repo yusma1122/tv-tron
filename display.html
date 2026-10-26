@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>Tayangan PPDS Obgin</title>
+  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/display.css">
+</head>
+<body class="display">
+  <div id="stage">
+    <header class="tv-header">
+      <img id="logo" class="logo" src="assets/logo-placeholder.svg" alt="Logo">
+      <div class="titles">
+        <div class="kicker">Pusat Informasi Digital</div>
+        <div id="instName" class="name">PPDS Obstetri dan Ginekologi FKIK ULM–RSUD Ulin</div>
+      </div>
+      <div class="clockbox">
+        <div id="clock">--:--:--</div>
+        <div id="date"></div>
+      </div>
+    </header>
+    <main id="slides" aria-live="off"></main>
+    <div id="progress"><span></span></div>
+    <footer class="tv-footer">
+      <span id="footerText" class="ft"></span>
+      <span id="lastUpdate" class="lu">Pembaruan terakhir: —</span>
+      <span id="conn" class="conn"><i class="dot"></i><b id="connText">Menghubungkan…</b></span>
+    </footer>
+  </div>
+
+  <div id="controls" class="controls">
+    <span class="hint">Klik layar atau tekan <kbd>F</kbd> untuk layar penuh</span>
+    <button id="fsBtn" type="button">⛶ Layar Penuh</button>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/common.js"></script>
+  <script src="js/display.js"></script>
+</body>
+</html>

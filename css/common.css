@@ -1,0 +1,12 @@
+:root{
+  --navy:#082B52; --blue:#0B5B9B; --blue-light:#147BC1; --white:#fff;
+  --bg:#F6FBFF; --green:#0B9A83; --red:#C0392B; --amber:#D68910;
+  --text:#12263f; --muted:#5b6b7e; --border:#d8e6f2;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;color:var(--text);background:var(--bg);line-height:1.4}
+[hidden],.hidden{display:none!important}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--blue)}
+img,video{max-width:100%}

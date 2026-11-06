@@ -198,10 +198,25 @@
   }
 
   /* ---------- Agenda mendatang ---------- */
+  var UPCOMING_DAYS = 7; // jadwal kegiatan H+1 s.d. H+7 ikut tampil di slide Agenda
   function eventRows(now) {
-    return state.data.events.filter(function (e) {
+    var today = P.todayStr(now);
+    var limit = P.todayStr(new Date(now.getFullYear(), now.getMonth(), now.getDate() + UPCOMING_DAYS));
+    var manual = state.data.events.filter(function (e) {
       return P.dt(e.event_date, e.end_time || e.start_time ? (e.end_time || e.start_time) : '23:59:59') >= now;
-    }).sort(function (a, b) {
+    });
+    // Jadwal kegiatan yang tanggalnya setelah hari ini (hari ini sudah tampil di slide Jadwal).
+    // Dilewati jika agenda manual dengan judul & tanggal sama sudah ada, agar tidak ganda.
+    var fromSchedules = state.data.schedules.filter(function (s) {
+      if (s.event_date <= today || s.event_date > limit) return false;
+      return !manual.some(function (e) {
+        return e.event_date === s.event_date && (e.title || '').trim().toLowerCase() === (s.title || '').trim().toLowerCase();
+      });
+    }).map(function (s) {
+      return { title: s.title, description: s.description, event_date: s.event_date,
+               start_time: s.start_time, end_time: s.end_time, location: s.location };
+    });
+    return manual.concat(fromSchedules).sort(function (a, b) {
       return P.dt(a.event_date, a.start_time) - P.dt(b.event_date, b.start_time);
     });
   }
@@ -233,127 +248,45 @@
       return { duration: dur, render: function () {
         var url = P.mediaUrl(m);
         var bg = h('div', { class: 'bg' }); bg.style.backgroundImage = 'url("' + url.replace(/"/g, '%22') + '")';
-        var img = h('img', { class: 'photo', src: url, alt: m.title });
-        img.style.animationDuration = (dur + 2) + 's';
-        var info = h('div', { class: 'info' },
-          h('span', { class: 'tag', text: item.title || 'Dokumentasi Kegiatan' }),
-          h('h2', { text: m.title }),
-          m.description ? h('p', { text: m.description }) : null,
-          m.event_date ? h('div', { class: 'date', text: P.fmtDate(m.event_date, { day: 'numeric', month: 'long', year: 'numeric' }) }) : null);
-        var el = h('section', { class: 'slide full gallery' }, bg, h('div', { class: 'frame' }, img), info);
-        img.addEventListener('error', function () { el.dispatchEvent(new Event('slidefail')); });
+        var el = h('section', { class: 'slide full gallery' }, bg, h('img', { class: 'photo', src: url, alt: m.title }),
+          h('div', { class: 'tag', text: item.title || 'Dokumentasi Kegiatan' }),
+          h('div', { class: 'caption' }, h('h2', { text: m.title }), m.description ? h('p', { text: m.description }) : null,
+            m.event_date ? h('small', { text: P.fmtDate(m.event_date, { day: 'numeric', month: 'long', year: 'numeric' }) }) : null));
+        el.querySelector('img.photo').addEventListener('error', function () { el.dispatchEvent(new Event('slidefail')); });
         return el;
       } };
     });
   }
 
-  /* ---------- Video (unggahan, URL file, YouTube, Google Drive) ---------- */
-  var audioUnlocked = false;
-  function updateHint() { /* petunjuk suara dihapus: video default tanpa suara */ }
-  function videoSrc(m) {
-    if (m.storage_path) return { kind: 'file', url: P.publicUrl(m.storage_path) };
-    return P.parseVideo(m.external_url);
-  }
-  var ytPromise = null;
-  function loadYT() {
-    if (window.YT && window.YT.Player) return Promise.resolve();
-    if (!ytPromise) ytPromise = new Promise(function (res, rej) {
-      var prev = window.onYouTubeIframeAPIReady;
-      window.onYouTubeIframeAPIReady = function () { if (prev) prev(); res(); };
-      var s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api';
-      s.onerror = function () { rej(new Error('yt')); }; document.head.append(s);
-      setTimeout(function () { rej(new Error('timeout')); }, 15000);
-    });
-    return ytPromise;
-  }
+  /* ---------- Video ---------- */
   function buildVideo(item, dur) {
-    var out = [];
-    state.data.media.forEach(function (m) {
-      if (m.media_type !== 'video') return;
-      var src = videoSrc(m); if (!src) return;
-      var tag = function () { return h('div', { class: 'tag', text: m.title || item.title }); };
-      if (src.kind === 'file') {
-        out.push({ duration: m.duration_seconds || 900, noProgress: !m.duration_seconds, render: function () {
-          var v = h('video', { src: src.url, playsinline: true, preload: 'auto' }); v.muted = true;
-          var el = h('section', { class: 'slide full vid' }, v, tag());
-          v.addEventListener('ended', function () { if (current && current.el === el) advance(); });
-          v.addEventListener('error', function () { el.dispatchEvent(new Event('slidefail')); });
-          el._video = v; return el;
-        } });
-      } else if (src.kind === 'youtube') {
-        out.push({ duration: m.duration_seconds || 3600, noProgress: !m.duration_seconds,
-          render: function () {
-            var box = h('div'), el = h('section', { class: 'slide full vid yt' }, box, tag());
-            el._ytbox = box; return el;
-          },
-          onShow: function (el) {
-            loadYT().then(function () {
-              if (!current || current.el !== el) return;
-              var vars = { autoplay: 1, mute: 1, controls: 0, rel: 0, playsinline: 1, modestbranding: 1, iv_load_policy: 3, cc_load_policy: 0, disablekb: 1 };
-              if (/^https?:$/.test(location.protocol)) { vars.origin = location.origin; vars.widget_referrer = location.href; }
-              el._yt = new window.YT.Player(el._ytbox, {
-                width: '1920', height: '880', videoId: src.id, playerVars: vars,
-                events: {
-                  onReady: function (e) {
-                    // matikan subtitle/caption (YouTube bisa mengingat pilihan CC di browser)
-                    try { e.target.unloadModule('captions'); e.target.unloadModule('cc'); } catch (x) { /* abaikan */ }
-                    if (audioUnlocked) e.target.unMute();
-                    e.target.playVideo(); updateHint();
-                },
-                  onApiChange: function (e) { try { e.target.unloadModule('captions'); e.target.unloadModule('cc'); } catch (x) { /* abaikan */ } },
-                  onStateChange: function (e) { if (e.data === 0 && current && current.el === el) advance(); },
-                  onError: function (e) { console.warn('YouTube error', e && e.data); el.dispatchEvent(new Event('slidefail')); }
-                }
-              });
-            }).catch(function () { ytPromise = null; el.dispatchEvent(new Event('slidefail')); });
-          } });
-      } else if (src.kind === 'drive') {
-        out.push({ duration: m.duration_seconds || 900, noProgress: !m.duration_seconds, render: function () {
-          var v = h('video', { src: 'https://drive.usercontent.google.com/download?id=' + src.id + '&export=download', playsinline: true, preload: 'auto' });
-          v.muted = true;
-          var el = h('section', { class: 'slide full vid' }, v, tag());
-          v.addEventListener('ended', function () { if (current && current.el === el) advance(); });
-          // Jika Drive menolak pemutaran langsung, pakai pemutar Drive (tanpa autoplay)
-          v.addEventListener('error', function () {
-            if (!el._video) return;
-            el._video = null; v.remove();
-            el.insertBefore(h('iframe', { src: 'https://drive.google.com/file/d/' + src.id + '/preview', allow: 'autoplay; fullscreen', referrerpolicy: 'no-referrer' }), el.firstChild);
-            clearTimeout(timer); progressBar.style.transition = 'none'; progressBar.style.width = '0';
-            timer = setTimeout(function () { if (current && current.el === el) advance(); }, (m.duration_seconds || 60) * 1000);
-            updateHint();
-          });
-          el._video = v; return el;
-        } });
-      } else {
-        out.push({ duration: m.duration_seconds || 900, noProgress: !m.duration_seconds, render: function () {
-          var v = h('video', { src: src.url, playsinline: true, preload: 'auto' }); v.muted = true;
-          var el = h('section', { class: 'slide full vid' }, v, tag());
-          v.addEventListener('ended', function () { if (current && current.el === el) advance(); });
-          v.addEventListener('error', function () { el.dispatchEvent(new Event('slidefail')); });
-          el._video = v; return el;
-        } });
-      }
+    return state.data.media.filter(function (m) { return m.media_type === 'video' && P.mediaUrl(m); }).map(function (m) {
+      return { duration: m.duration_seconds || 900, noProgress: !m.duration_seconds, video: true, render: function () {
+        var url = P.mediaUrl(m);
+        var v = h('video', { src: url, playsinline: true, preload: 'auto' });
+        v.muted = false;
+        var el = h('section', { class: 'slide full vid' }, v,
+          h('div', { class: 'tag', text: m.title || item.title }));
+        v.addEventListener('ended', function () { if (current && current.el === el) advance(); });
+        v.addEventListener('error', function () { el.dispatchEvent(new Event('slidefail')); });
+        el._video = v;
+        return el;
+      } };
     });
-    return out;
   }
   function playVideo(v) {
+    var ok = function () { $('#audioHint').hidden = !v.muted; };
     var p = v.play();
-    if (!p || !p.then) return updateHint();
-    p.then(updateHint).catch(function () {
+    if (!p || !p.then) return ok();
+    p.then(ok).catch(function () {
       v.muted = true;
       var p2 = v.play();
-      if (p2 && p2.then) p2.then(updateHint).catch(function () { v.dispatchEvent(new Event('error')); });
-      else updateHint();
+      if (p2 && p2.then) p2.then(ok).catch(function () { v.dispatchEvent(new Event('error')); });
+      else ok();
     });
   }
   function unmute() {
-    audioUnlocked = true;
-    var c = current && current.el;
-    if (c) {
-      if (c._video) c._video.muted = false;
-      if (c._yt && c._yt.unMute) { try { c._yt.unMute(); } catch (e) { /* belum siap */ } }
-    }
-    updateHint();
+    if (current && current.el._video) { current.el._video.muted = false; $('#audioHint').hidden = true; }
   }
 
   var BUILDERS = {
@@ -384,12 +317,6 @@
     if (++failStreak > 5) { failStreak = 0; show(messageSlide('Konten tidak dapat dimuat', 'Mencoba kembali sebentar lagi…')); }
     else advance();
   }
-  function rearm(sec) {
-    clearTimeout(timer);
-    timer = setTimeout(function () { failStreak = 0; advance(); }, sec * 1000);
-    progressBar.style.transition = 'none'; progressBar.style.width = '0'; void progressBar.offsetWidth;
-    progressBar.style.transition = 'width ' + sec + 's linear'; progressBar.style.width = '100%';
-  }
   function showStatic(slide) { clearTimeout(timer); show(slide, true); }
   function show(s, hold) {
     var el;
@@ -403,9 +330,8 @@
       prev.el.classList.remove('active');
       setTimeout(function () {
         var v = prev.el._video; if (v) { v.pause(); v.removeAttribute('src'); v.load(); }
-        if (prev.el._yt && prev.el._yt.destroy) { try { prev.el._yt.destroy(); } catch (e) { /* abaikan */ } }
         prev.el.remove();
-        updateHint();
+        $('#audioHint').hidden = !(current && current.el._video && current.el._video.muted);
       }, 900);
     }
     // progress bar
@@ -415,8 +341,6 @@
       progressBar.style.transition = 'width ' + s.duration + 's linear'; progressBar.style.width = '100%';
     }
     if (el._video) playVideo(el._video);
-    if (s.onShow) s.onShow(el);
-    updateHint();
     if (hold) return;
     timer = setTimeout(function () { failStreak = 0; advance(); }, s.duration * 1000);
   }

@@ -198,7 +198,7 @@
   }
 
   /* ---------- Agenda mendatang ---------- */
-  var UPCOMING_DAYS = 7; // jadwal kegiatan H+1 s.d. H+7 ikut tampil di slide Agenda
+  var UPCOMING_DAYS = 14; // jadwal kegiatan H+1 s.d. H+7 ikut tampil di slide Agenda
   function eventRows(now) {
     var today = P.todayStr(now);
     var limit = P.todayStr(new Date(now.getFullYear(), now.getMonth(), now.getDate() + UPCOMING_DAYS));

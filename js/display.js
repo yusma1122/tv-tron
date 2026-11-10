@@ -258,6 +258,21 @@
     });
   }
 
+  /* ---------- Slideshow (gambar saja, tanpa teks) ---------- */
+function buildSlideshow(item, dur) {
+  return state.data.media.filter(function (m) { return m.media_type === 'slideshow' && P.mediaUrl(m); }).map(function (m) {
+    return { duration: dur, render: function () {
+      var url = P.mediaUrl(m);
+      var bg = h('div', { class: 'bg' }); bg.style.backgroundImage = 'url("' + url.replace(/"/g, '%22') + '")';
+      var el = h('section', { class: 'slide full gallery' }, bg,
+        h('img', { class: 'photo', src: url, alt: m.title }),
+        m.show_title !== false ? h('div', { class: 'caption' }, h('h2', { text: m.title })) : null);
+      el.querySelector('img.photo').addEventListener('error', function () { el.dispatchEvent(new Event('slidefail')); });
+      return el;
+    } };
+  });
+}
+
   /* ---------- Video ---------- */
   function buildVideo(item, dur) {
     return state.data.media.filter(function (m) { return m.media_type === 'video' && P.mediaUrl(m); }).map(function (m) {
@@ -291,7 +306,7 @@
 
   var BUILDERS = {
     schedule: buildSchedule, announcement: buildAnn(false), academic: buildAnn(true),
-    event: buildEvents, gallery: buildGallery, video: buildVideo
+    event: buildEvents, gallery: buildGallery, video: buildVideo, slideshow: buildSlideshow
   };
 
   /* ---------- Antrean & pemutaran ---------- */
@@ -370,6 +385,21 @@
   }
   ['mousemove', 'touchstart', 'keydown'].forEach(function (ev) { document.addEventListener(ev, function () { showUi(); }, { passive: true }); });
   showUi(15000);
+
+/* ---------- Cegah layar tidur (Screen Wake Lock) ---------- */
+  var wakeLock = null;
+  function requestWake() {
+    if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
+    navigator.wakeLock.request('screen').then(function (l) {
+      wakeLock = l;
+      l.addEventListener('release', function () { if (wakeLock === l) wakeLock = null; });
+    }).catch(function (e) { console.warn('Wake lock gagal:', e && e.message); });
+  }
+  document.addEventListener('visibilitychange', requestWake);
+  document.addEventListener('fullscreenchange', requestWake);
+  document.addEventListener('click', requestWake);
+  setInterval(function () { if (!wakeLock) requestWake(); }, 30000);
+  requestWake();
 
   /* ---------- Mulai ---------- */
   function boot() {

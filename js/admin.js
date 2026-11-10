@@ -248,6 +248,33 @@
         ['Tanggal', function (r) { return r.event_date ? P.fmtDate(r.event_date) : '—'; }]
       ]
     },
+    slideshow: {
+  title: 'Slideshow', table: 'media', noun: 'gambar', mediaType: 'slideshow', reorder: true,
+  order: [['sort_order', true], ['created_at', false]],
+  fields: [
+  { name: 'title', label: 'Judul', type: 'text', required: true, full: true, help: 'Selalu wajib diisi sebagai nama gambar. Tampil di TV hanya jika toggle di bawah aktif.' },
+  { name: 'show_title', label: 'Tampilkan judul di TV', type: 'checkbox' },
+  { name: '_file', label: 'Gambar', type: 'file', kind: 'image', accept: 'image/jpeg,image/png,image/webp', help: KINDS.image.label + '. Saat mengedit, kosongkan untuk mempertahankan gambar.' },
+  { name: 'is_published', label: 'Tampilkan di TV', type: 'checkbox' }
+],
+defaults: function () { return { is_published: true, show_title: true }; },
+  prepare: function (row) { return row.storage_path ? { _currentUrl: P.publicUrl(row.storage_path) } : {}; },
+  beforeSave: async function (p, raw, row, ctx, rows) {
+    p.media_type = 'slideshow'; p.external_url = null;
+    if (raw._file) {
+      p.storage_path = await upload(raw._file, 'slideshow', 'image', ctx);
+      if (row && row.storage_path) ctx.remove.push(row.storage_path);
+    } else if (row && row.storage_path) p.storage_path = row.storage_path;
+    else throw new Error('Pilih file gambar.');
+    if (!row) p.sort_order = nextOrder(rows);
+    return p;
+  },
+    columns: [
+    ['Gambar', function (r) { return r.storage_path ? h('img', { class: 'thumb', src: P.publicUrl(r.storage_path), alt: r.title, loading: 'lazy' }) : '—'; }],
+    ['Judul', function (r) { return titleCell(r); }],
+    ['Judul di TV', function (r) { return r.show_title ? badge('Tampil', 'ok') : badge('Disembunyikan'); }]
+  ]
+},
     videos: {
       title: 'Video', table: 'media', noun: 'video', mediaType: 'video', reorder: true,
       order: [['sort_order', true], ['created_at', false]],
@@ -450,7 +477,7 @@
   }
 
   /* ======================= Pengaturan ======================= */
-  var SLIDE_LABEL = { schedule: 'Jadwal', announcement: 'Pengumuman', event: 'Agenda', gallery: 'Dokumentasi', academic: 'Informasi Akademik', video: 'Video' };
+  var SLIDE_LABEL = { schedule: 'Jadwal', announcement: 'Pengumuman', event: 'Agenda', gallery: 'Dokumentasi', academic: 'Informasi Akademik', video: 'Video', slideshow: 'Slideshow' };
   async function getSettings() {
     var r = await sb.from('signage_settings').select('*').order('updated_at', { ascending: false }).limit(1);
     if (r.error) throw r.error;
@@ -549,7 +576,7 @@
   /* ======================= Router & auth ======================= */
   var NAV = [
     ['dashboard', 'Dashboard', renderDashboard], ['schedules', 'Jadwal Kegiatan'], ['announcements', 'Pengumuman'],
-    ['events', 'Agenda Mendatang'], ['gallery', 'Dokumentasi'], ['videos', 'Video'],
+    ['events', 'Agenda Mendatang'], ['gallery', 'Dokumentasi'],['slideshow', 'Slideshow'], ['videos', 'Video'],
     ['playlist', 'Pengaturan Tayangan', renderPlaylistSettings], ['app', 'Pengaturan Aplikasi', renderAppSettings]
   ];
   function buildNav() {

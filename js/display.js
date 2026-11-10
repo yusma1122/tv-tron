@@ -228,14 +228,17 @@
         if (!slice.length) return null;
         var f = frame('events', item.title || 'Agenda Mendatang', pages > 1 ? (p + 1) + '/' + pages : null);
         slice.forEach(function (e) {
-          var d = P.dt(e.event_date), isToday = e.event_date === P.todayStr(now);
-          var time = e.start_time ? P.fmtTime(e.start_time) + (e.end_time ? ' – ' + P.fmtTime(e.end_time) : '') : 'Sepanjang hari';
-          f.body.append(h('div', { class: 'ev' + (isToday ? ' today' : '') },
-            h('div', { class: 'date' }, h('small', { text: d.toLocaleDateString('id-ID', { weekday: 'short' }) }),
-              h('b', { text: String(d.getDate()) }), h('span', { text: d.toLocaleDateString('id-ID', { month: 'short' }) })),
-            h('div', null, h('div', { class: 't', text: e.title }), e.description ? h('div', { class: 'd', text: e.description }) : null),
-            h('div', { class: 'side' }, h('b', { text: time }), e.location ? '📍 ' + e.location : '')));
-        });
+        var d = P.dt(e.event_date), isToday = e.event_date === P.todayStr(now);
+        var isTomorrow = e.event_date === P.todayStr(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+        var time = e.start_time ? P.fmtTime(e.start_time) + (e.end_time ? ' – ' + P.fmtTime(e.end_time) : '') : 'Sepanjang hari';
+        f.body.append(h('div', { class: 'ev' + (isToday ? ' today' : '') + (isTomorrow ? ' tomorrow' : '') },
+          h('div', { class: 'date' }, h('small', { text: d.toLocaleDateString('id-ID', { weekday: 'short' }) }),
+            h('b', { text: String(d.getDate()) }), h('span', { text: d.toLocaleDateString('id-ID', { month: 'short' }) })),
+          h('div', null, h('div', { class: 't', text: e.title }), e.description ? h('div', { class: 'd', text: e.description }) : null),
+          h('div', { class: 'side' },
+            isTomorrow ? h('div', null, h('span', { class: 'ev-tag', text: 'BESOK' })) : null,
+            h('b', { text: time }), e.location ? '📍 ' + e.location : '')));
+      });
         return f.el;
       } });
     })(p);

@@ -417,7 +417,7 @@ function startKeepAwake() {
     keepEl.setAttribute('aria-hidden', 'true');
     if (isVideo) {
       keepEl.muted = true;
-      keepEl.style.cssText = 'position:fixed;left:0;bottom:0;width:160px;height:90px;opacity:.02;pointer-events:none;z-index:-1';
+      keepEl.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;opacity:.01;pointer-events:none;z-index:9999;object-fit:cover';
     }
     document.body.appendChild(keepEl);
   }

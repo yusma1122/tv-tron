@@ -405,7 +405,7 @@ function buildSlideshow(item, dur) {
   // requestWake();
 
 /* ---------- Keep-awake: media senyap berulang (cadangan Wake Lock, untuk webOS) ---------- */
-var KEEPAWAKE_SRC = 'assets/tes.mp3'; // ganti ke 'assets/silent.mp4' jika memakai video
+var KEEPAWAKE_SRC = 'assets/silent.mp4'; // ganti ke 'assets/silent.mp4' jika memakai video
 var keepEl = null;
 function startKeepAwake() {
   if (!keepEl) {

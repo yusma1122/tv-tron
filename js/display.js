@@ -390,19 +390,47 @@ function buildSlideshow(item, dur) {
   showUi(15000);
 
 /* ---------- Cegah layar tidur (Screen Wake Lock) ---------- */
-  var wakeLock = null;
-  function requestWake() {
-    if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
-    navigator.wakeLock.request('screen').then(function (l) {
-      wakeLock = l;
-      l.addEventListener('release', function () { if (wakeLock === l) wakeLock = null; });
-    }).catch(function (e) { console.warn('Wake lock gagal:', e && e.message); });
+  // var wakeLock = null;
+  // function requestWake() {
+  //   if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
+  //   navigator.wakeLock.request('screen').then(function (l) {
+  //     wakeLock = l;
+  //     l.addEventListener('release', function () { if (wakeLock === l) wakeLock = null; });
+  //   }).catch(function (e) { console.warn('Wake lock gagal:', e && e.message); });
+  // }
+  // document.addEventListener('visibilitychange', requestWake);
+  // document.addEventListener('fullscreenchange', requestWake);
+  // document.addEventListener('click', requestWake);
+  // setInterval(function () { if (!wakeLock) requestWake(); }, 30000);
+  // requestWake();
+
+/* ---------- Keep-awake: media senyap berulang (cadangan Wake Lock, untuk webOS) ---------- */
+var KEEPAWAKE_SRC = 'assets/tes.mp3'; // ganti ke 'assets/silent.mp4' jika memakai video
+var keepEl = null;
+function startKeepAwake() {
+  if (!keepEl) {
+    var isVideo = /\.(mp4|webm)$/i.test(KEEPAWAKE_SRC);
+    keepEl = document.createElement(isVideo ? 'video' : 'audio');
+    keepEl.src = KEEPAWAKE_SRC;
+    keepEl.loop = true;
+    keepEl.setAttribute('playsinline', '');
+    keepEl.setAttribute('aria-hidden', 'true');
+    if (isVideo) {
+      keepEl.muted = true;
+      keepEl.style.cssText = 'position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:.01;pointer-events:none;z-index:-1';
+    }
+    document.body.appendChild(keepEl);
   }
-  document.addEventListener('visibilitychange', requestWake);
-  document.addEventListener('fullscreenchange', requestWake);
-  document.addEventListener('click', requestWake);
-  setInterval(function () { if (!wakeLock) requestWake(); }, 30000);
-  requestWake();
+  if (keepEl.paused) {
+    var p = keepEl.play();
+    if (p && p.catch) p.catch(function () { /* menunggu klik berikutnya */ });
+  }
+}
+['click', 'keydown', 'touchstart'].forEach(function (ev) { document.addEventListener(ev, startKeepAwake); });
+document.addEventListener('fullscreenchange', startKeepAwake);
+document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') startKeepAwake(); });
+setInterval(startKeepAwake, 30000);
+startKeepAwake();
 
   /* ---------- Mulai ---------- */
   function boot() {
